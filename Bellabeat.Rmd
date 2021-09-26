@@ -1,0 +1,438 @@
+---
+title: "Bellabeat Case Study"
+author: "Laith"
+date: "8/31/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+ ![](https://upload.wikimedia.org/wikipedia/commons/2/24/Bellabeatlogo.png)
+ 
+ 
+# Mission Statement / Introduction 
+The purpose of this report is to aid Bellabeat in marketing to its customer base as a member if its marketing analytics team. The trends identified from the Fit Bit data will be identified and compared to the range of products and services offered by Bellabeat. The insights gathered will be used to alter the marketing strategy on a high level as they are both smart devices in the form of recommendations made. The Ask, Prepare, Process, Analyze, Share and Act mthodology will be used to accomplish this.
+
+## I.Ask 
+
+### Questions to be Answered
+* What are some trends in smart device usage? 
+* How could these trends apply to Bellabeat customers?
+* How could these trends help influence Bellabeat marketing strategy?
+
+### Shareholders of this analysis
+
+* Urška Sršen - Bellabeat CEO & Co founder
+* Sando Mur - Co founder and Mathematician
+* Marketing Analytics Team at Bellabeat
+
+## II.Prepare
+
+
+* Data sets obtained from Kaggle is comprehensive covering personal fitness tracker information covering minute-level, hour-level and daily level output for physical activity, heart-rate, and sleep monitoring. 
+
+* Individual reports can be parsed by export session ID (column A) or timestamp (column B). Variation between output represents use of different types of Fitbit trackers and individual tracking behaviors / preferences.
+
+* The data does not seem to be reliable as it is only from 30 users for a period of two months, additionally there is no information regarding gender, weight and age of the participants. 
+
+* Data from all 18 csv's is stored in the wide format with some Narrow (long) format versions avaialble for some of the csv files referring to minutes observations.The data set is stored on Kaggle.
+
+* R will be utilized in this analysis with some SQL being used in the **sqldf** data package.
+ 
+* The data provided has certain limitations that are immediately evident. The data set corresponds to fitness data from 30 FitBit users. This sample would not be representative of the entire smart device using crowd (possible Sampling Bias).
+
+* The data does not seem to be current as it dates from April 2016 to May 2016. This data is not long-term enough (2 months is not indicative of long term conclusions). 
+
+### Installing and Loading Packages
+
+```{r Installing Packages, echo=FALSE}
+install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+install.packages("skimr", repos = "http://cran.us.r-project.org")
+install.packages("dplyr", repos = "http://cran.us.r-project.org")
+install.packages("janitor", repos = "http://cran.us.r-project.org")
+install.packages("here", repos = "http://cran.us.r-project.org")
+install.packages("ggcorrplot", repos ="http://cran.us.r-project.org" )
+install.packages("ggpubr", repos = "http://cran.us.r-project.org")
+
+library("tidyverse")
+library("skimr")
+library("dplyr")
+library("janitor")
+library("here")
+library("ggplot2")
+library("ggcorrplot")
+library("ggpubr")
+
+```
+
+### Importing Datasets 
+
+The data frames will be merged and analyzed based off of the time frame that the data is recorded.
+
+```{r}
+  
+#daily files to be merged 
+activity <- read.csv("./Fitabase Data 4.12.16-5.12.16/dailyActivity_merged.csv")
+calories <- read.csv("./Fitabase Data 4.12.16-5.12.16/dailyCalories_merged.csv")
+intensities <- read.csv("./Fitabase Data 4.12.16-5.12.16/dailyIntensities_merged.csv")
+steps <- read.csv("./Fitabase Data 4.12.16-5.12.16/dailySteps_merged.csv")
+weight_log <- read.csv("./Fitabase Data 4.12.16-5.12.16/weightLogInfo_merged.csv")
+sleep_Day <- read.csv("./Fitabase Data 4.12.16-5.12.16/sleepDay_merged.csv")
+
+#minute files to be merged together
+minute_MET <-read.csv("./Fitabase Data 4.12.16-5.12.16/minuteMETsNarrow_merged.csv")
+heart_rate_Sec <- read.csv("./Fitabase Data 4.12.16-5.12.16/heartrate_seconds_merged.csv")
+sleep_min <- read.csv("./Fitabase Data 4.12.16-5.12.16/minuteSleep_merged.csv")
+step_min <- read.csv("./Fitabase Data 4.12.16-5.12.16/minuteStepsNarrow_merged.csv")
+cals_min <- read.csv("./Fitabase Data 4.12.16-5.12.16/minuteCaloriesNarrow_merged.csv")
+intensities_min <- read.csv("./Fitabase Data 4.12.16-5.12.16/minuteIntensitiesNarrow_merged.csv")
+
+#Hourly data sets to be merged together  
+hourlyIntensities <- read.csv(("./Fitabase Data 4.12.16-5.12.16/hourlyIntensities_merged.csv"))
+hourlyCalories <- read.csv(("./Fitabase Data 4.12.16-5.12.16/hourlyCalories_merged.csv"))
+hourlySteps <- read.csv("./Fitabase Data 4.12.16-5.12.16/hourlySteps_merged.csv")
+```
+### Checking DataFrames for Any Inconsistencies
+```{r}
+str(activity)
+
+```
+```{r}
+str(calories)
+```
+```{r}
+str(intensities)
+```
+
+```{r}
+str(steps)
+```
+```{r}
+str(weight_log)
+```
+## III.Process
+#### Cleaning Data -Formatting Date 
+It was observed that the Date attribute for the all the data frames imported was in the "Chr" data type. We would need to convert to **date time** data type. The lubridate library was utilized for this and done for each of the daily data frames as those are the main data frames being utilized for this analysis.
+
+```{r}
+library(lubridate)
+#activity 
+activity$ActivityDate= as.POSIXct(activity$ActivityDate, format= "%m/%d/%Y", tz=Sys.timezone())
+activity$date <- format(activity$ActivityDate, format="%m/%d/%y")
+#steps
+steps$ActivityDay = as.POSIXct(steps$ActivityDay, format = "%m/%d/%Y", tz= Sys.timezone())
+steps$date <- format(steps$ActivityDay, format = "%m/%d/%y")
+#intensities 
+intensities$ActivityDay = as.POSIXct(intensities$ActivityDay, format = "%m/%d/%Y", tz=Sys.timezone())
+intensities$date <- format(intensities$ActivityDay, format = "%m/%d/%y")
+#calories
+calories$ActivityDay = as.POSIXct(calories$ActivityDay, format = "%m/%d/%Y", tz=Sys.timezone())
+calories$date <- format(calories$ActivityDay, format = "%m/%d/%y")
+#minute_MET
+minute_MET$ActivityMinute = as.POSIXct(minute_MET$ActivityMinute, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+minute_MET$time <- format(minute_MET$ActivityMinute, format="%H:%M:%S")
+minute_MET$date <- format(minute_MET$ActivityMinute, format="%m/%d/%y")
+#weight_log 
+weight_log$Date = as.POSIXct(weight_log$Date, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+weight_log$time <- format(weight_log$Date, format="%H:%M:%S")
+weight_log$date <- format(weight_log$Date, format="%m/%d/%y")
+#sleep_Day
+sleep_Day$SleepDay = as.POSIXct(sleep_Day$SleepDay, format = "%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+sleep_Day$date <-format(sleep_Day$SleepDay, format="%m/%d/%y")
+#hourlyCalories 
+
+hourlyCalories$ActivityHour = as.POSIXct(hourlyCalories$ActivityHour, format ="%m/%d/%Y %I:%M:%S %p", tz = Sys.timezone())
+hourlyCalories$time <- format(hourlyCalories$ActivityHour, format="%H:%M:%S")
+hourlyCalories$date <- format(hourlyCalories$ActivityHour, format = "%m/%d/%y")
+#hourlyIntensities
+hourlyIntensities$ActivityHour = as.POSIXct(hourlyIntensities$ActivityHour, format="%m/%d/%Y %I:%M:%S %p", tz = Sys.timezone())
+hourlyIntensities$time <- format(hourlyIntensities$ActivityHour, format="H:%M:%S")
+hourlyIntensities$date <- format(hourlyIntensities$ActivityHour, format = "%m/%d/%y")
+#heartrate seconds 
+heart_rate_Sec$Time = as.POSIXct(heart_rate_Sec$Time, format = "%m/%d/%Y %I:%M:%S %p", tz= Sys.timezone())
+heart_rate_Sec$time <- format(heart_rate_Sec$Time, format = "%H:%M:%S")
+heart_rate_Sec$date <- format(heart_rate_Sec$Time, format = "%m/%d/%y")
+
+```
+#### Cleaning Data - Duplicate Removal  
+
+We will be using the distinct function from the **dplyr** package in order to ensure that there are no duplicates based of the ID and Date columns per row.
+```{r}
+install.packages("dplyr")
+library(dplyr)
+#activity duplicate check
+activity %>% 
+  distinct(Id, ActivityDate, .keep_all = TRUE)
+# no duplicates found 
+# calories duplicate check
+calories %>% 
+  distinct(Id, ActivityDay, .keep_all = TRUE)
+#no duplicates found 
+#sleepday check
+sleep_Day %>% 
+  distinct(Id, SleepDay, .keep_all = TRUE)
+# 3 duplicate rows were found and removed 
+#Re-assinging cleaned Dataframe to sleep_Day
+sleep_Day <- sleep_Day %>% distinct(Id, SleepDay, .keep_all = TRUE)
+#weight_log 
+weight_log %>% 
+  distinct(Id,Date, .keep_all = TRUE)
+#No duplicates found 
+```
+### Initial Data Exploration  
+```{r}
+n_distinct(activity$Id)
+n_distinct(calories$Id)
+n_distinct(intensities$Id)
+n_distinct(sleep_Day$Id)
+n_distinct(weight_log$Id)
+```
+Initial observations from this exploration:
+
+* 33 participants were included in the data as opposed to the initially estimated 30. 
+* The **activity**, **calories**, and the **intensities** csv files all have 33 distinct user id's. This would cause for an investigation of inclusion in order to aid in the consolidation of the files to a single data frame that will be utilized in trend identification and visualization later on in the analysis. 
+*Only 8 partcipants participated in the logging of their weight this would need to be taken into account.
+
+
+### Checking for Inclusion 
+
+There are currently 10 data frames loaded. All data frames contain an "Id" column which could be a possible merging point. 
+Upon inspection of the activity data frame it is a strong possibility that all the observations from the calories, intensities and steps are already contained in the activity data frame.We would need to have an equal number of observations and each observation must match its corresponding ID. 
+
+### Narrowing Down Daily Data Frames to be Analyzed Using "sqldf"
+The values from **calories**, **intensities** and **steps** data frames are believed to be contained in the activity data frame. The **sqldf** package is loaded to confirm this. A temporary data frame with the relevant columns is created from the **activity** data frames  and compared to the various data frames with the utilization of an "INTERSECT SELECT". The head function is used to compare the values from the two temporary data frames. The code written to do this is highlighted below: 
+```{r}
+install.packages("sqldf", repos = "http://cran.us.r-project.org")
+library("sqldf")
+daily_activity2 <- activity %>% 
+  select(Id, ActivityDate, Calories, date)
+head(daily_activity2)
+```
+```{r}
+sql_check1 <- sqldf('SELECT * FROM daily_activity2 INTERSECT SELECT * FROM calories')
+head(sql_check1)
+nrow(sql_check1)
+# result from the temporary data fram corresponds to the calories data frame. 
+
+```
+```{r}
+daily_activity3 <- activity %>% 
+  select(Id, ActivityDate, SedentaryMinutes, LightlyActiveMinutes, FairlyActiveMinutes, VeryActiveMinutes, SedentaryActiveDistance, LightActiveDistance , ModeratelyActiveDistance, VeryActiveDistance, date)
+head(daily_activity3)
+```
+```{r}
+sql_check2 <- sqldf('SELECT * FROM daily_activity3 INTERSECT SELECT * FROM intensities')
+head(sql_check2)
+#results from the temporary data fram and intensities columns match up. 
+```
+
+```{r}
+daily_activity4 <- activity %>% 
+  select(Id, ActivityDate, TotalSteps, date )
+head(daily_activity4)
+```
+```{r}
+sql_check3 <- sqldf('SELECT * FROM daily_activity4 INTERSECT SELECT * FROM steps')
+head(sql_check3)
+```
+
+Each of the sQL check data frames matches up with the test data frames pulled from the **activity** data frame. Out of the 6 daily csv files loaded for analysis 3 files remain. The **activity** data frame will be the main file being utilized in this analysis. The file is missing Sleeping and Weight information which is found in the **sleep_Day** and the **weight_log**  data frames , respectively. The next step would be to merged the three data frames based on the ID and data fields. An additional column of total daily active minutes is created utilizing the **mutate** function this is done below: 
+
+```{r}
+activity_ii <- merge(activity, sleep_Day, by =c('Id','date')) %>% 
+  select(-date,-SleepDay, -TrackerDistance) %>% drop_na() %>% 
+  rowwise() %>% 
+  mutate(total_daily_mins = sum(c(LightlyActiveMinutes,FairlyActiveMinutes, VeryActiveMinutes)))
+head(activity_ii)
+```
+
+
+The only remaining data frame from the daily files is the **weight_log** information. 
+
+```{r}
+activity_merged <- merge(activity_ii, weight_log, by = "Id")
+hourly_merge <- merge(hourlyCalories, hourlyIntensities, by =c("Id","ActivityHour"))
+
+
+         
+head(activity_merged)
+head(hourly_merge)
+
+```
+
+## IV.Analyze
+
+### Basic Calculations Done to Column
+
+The columns for "total_hours_asleep", "sedentary_hours", "total_active_hours", "total_hours_in_bed" were added as counterparts the minute columns.
+```{r}
+activity_merged <- activity_merged %>% 
+  mutate(total_hours_asleep = round(TotalMinutesAsleep/60,1), 
+         sedentary_hours = round(SedentaryMinutes/60, 1),
+         total_active_hours = round(total_daily_mins/60, 1),
+         total_hours_in_bed = round(TotalTimeInBed/60, 1)
+  )
+head(activity_merged)
+```
+
+### Trend Identification and Aggregation 
+
+```{r}
+#activity 
+activity %>% 
+  select(TotalSteps, TotalDistance, SedentaryMinutes, LightlyActiveMinutes ,FairlyActiveMinutes,VeryActiveMinutes, Calories) %>% 
+  summary()
+#calories 
+calories %>% 
+  select(Calories) %>% 
+  summary()
+#sleep 
+sleep_Day %>% 
+  select(TotalSleepRecords, TotalMinutesAsleep, TotalTimeInBed) %>% 
+  summary() 
+#weight 
+weight_log %>% 
+  select(WeightKg, BMI) %>% 
+  summary()
+
+```
+**Trends Observed** 
+
+* The average sedentary time tracked is 991.2 minutes or 16.5 hours this is definitely something that would need to be increased. 
+
+*  The average BMI is 25.19 which is in the overweight range according to the CDC this is another observation about the average participant in the study to increase their activity range. 
+
+* The average number of steps is 7638 which is much below the 10,000 daily steps recommended by the CDC. 
+
+* The average amount of sleep needed as per the CDC for adults aged 18- 60 years is 7 hours. The average sleep time is just below that. This is another factor that would need to be increased. 
+
+
+
+
+The data will be further explored 
+Now that the data is cleaned and formatted accordingly. The next logical step would be to organized the data for visualization. 
+
+
+The two main factors that will determine organization are daily intensity and daily sleep taken. They will be compared to calories burned. 
+
+##### Subgrouping and Calculations on "actvity_merged" for Visualization 
+
+The activity_merged data frame would need to be categorized. Intensity will be used for this where we will divide the 33 distinct user ids into categories of "Sedentary", "Lightly Active", "Fairly Active", and "Very Active"; this is done by comparing each entries minutes to the mean of that specific category. The **factor** function will be used to do this. 
+```{r}
+usertype_data <- activity_merged %>% 
+  summarise(
+    user_type = factor(case_when(
+      SedentaryMinutes > mean(SedentaryMinutes) & LightlyActiveMinutes < mean(LightlyActiveMinutes) & FairlyActiveMinutes < mean(FairlyActiveMinutes) & VeryActiveMinutes < mean(VeryActiveMinutes) ~ "Sedentary",
+      SedentaryMinutes < mean(SedentaryMinutes) & LightlyActiveMinutes > mean(LightlyActiveMinutes) & FairlyActiveMinutes < mean(FairlyActiveMinutes) & VeryActiveMinutes < mean(VeryActiveMinutes) ~ "Lightly Active",
+      SedentaryMinutes < mean(SedentaryMinutes) & LightlyActiveMinutes < mean(LightlyActiveMinutes) & FairlyActiveMinutes > mean(FairlyActiveMinutes) & VeryActiveMinutes < mean(VeryActiveMinutes) ~ "Fairly Active", 
+      SedentaryMinutes < mean(SedentaryMinutes) & LightlyActiveMinutes < mean(LightlyActiveMinutes) & FairlyActiveMinutes < mean(FairlyActiveMinutes) & VeryActiveMinutes > mean(VeryActiveMinutes) ~ "Very Active", 
+    ), level=c("Sedentary","Lightly Active", "Fairly Active", "Very Active")), Calories, .group = Id) %>% 
+  drop_na()
+
+
+```
+
+
+## V.Share
+
+```{r}
+# Next step would be  to visualize the distribution of ser types by a pie chart followed by a box plot for the calories burnt by user type this is done below: 
+library(ggplot2)
+usertype_data %>% 
+  group_by(user_type) %>% 
+  summarise(total=n()) %>% 
+  mutate(totals = sum(total)) %>% 
+  group_by(user_type) %>% 
+  summarise(total_percent = total / totals) %>% 
+  ggplot(aes(user_type, x=" ", y= total_percent, fill = user_type))+ theme_void()+geom_bar(stat='identity', color = 'black')+geom_text(aes(label = paste(round(total_percent * 100, 1), "%"), x = 1.1),
+            position = position_stack(vjust = 0.7))+labs(fill = 'Category of User', title = "Visualization 1 - User Type by Percentage")+coord_polar("y")
+
+```
+As evident in visualization 1, the majority of the participants in the survey would qualify as "Sedentary" with 63.9%. Next most popular category would be "Lightly Active" at 24.9%. The remaining two slice are "Fairly Active" at 9.7% and "Very Active" at 1.6%. The aim of the next visualization would be highlight the amount of calories used based off the categories outlined. This is done below: 
+
+```{r}
+#Box plot of calories burnt per Category of User 
+ggplot(usertype_data, aes(user_type, Calories, fill=user_type)) + geom_boxplot()+theme(legend.position = "none")+ labs(title="Visualization 2 - Calories Burned by Cateogory of User", x= NULL) + theme(legend.position = "none", text = element_text(size=10), plot.title = element_text(hjust = 0.5))
+```
+ 
+ The "Very Active" category was responsible for the most amount of calories used. The next step would be to investigate the factors that affect calories used the most. 
+ After getting a breakdown of the user types and the amount of calories burned in the form of a box plot to gain a general view. The next logical steps was to determine the coefficient of relation between the total steps taken daily and the amount of calories burnt. This is done below: 
+
+ 
+
+```{r}
+ggscatter(activity_merged,x = "TotalSteps", y="Calories", add ="reg.line", conf.int= TRUE, cor.coef = TRUE, cor.method = "pearson", add.params = list(color = "black", fill ="red"), title = "Visualization 3 - Total Steps vs Calories Burned")
+
+#ggplot(activity, aes(TotalSteps, Calories))+geom_point()+geom_smooth()+labs(title="Vitalization 3 - Total steps and Calories Burned")
+
+
+
+```
+* A pearson correlation coefficient of 0.61 represents somewhat of a positive correlation, additionally the p-value returned a value much lower than the alpha value of 0.05 which would indicate a significant correlation.
+
+*  This lead to the inference that those wanting to burn more calories should take more steps in the day.
+
+* Two other possible factors that would possibly correlated to the total number of calories burnt would be intensity and sleep taken.
+
+
+
+```{r}
+ggscatter(hourly_merge,x = "TotalIntensity", y="Calories", add ="reg.line", conf.int= TRUE, cor.coef = TRUE, cor.method = "pearson", add.params = list(color = "black", fill ="red"), title = "Vitalization 4 - Total Intensity vs Calories Burned",xlab = "Total Intensity Per Hour")
+```
+* A pearson correlation coefficient of 0.9 represents a very strong positive correlation, the p-value returned a value much lower than the alpha value of 0.05 which would indicate a significant correlation.
+
+* This is would lead to the inference that those wanting to burn more calories should take the intensity of their exercise in mind, as it has the greatest effect on the calories burned.
+
+* The only remaining factor be investigated in more detail is the sleep statistics.
+
+```{r}
+ggscatter(sleep_Day,x = "TotalMinutesAsleep", y="TotalTimeInBed", add ="reg.line", conf.int= TRUE, cor.coef = TRUE, cor.method = "pearson", add.params = list(color = "black", fill ="red"), title = "Visualization 5 - Total minutes asleep vs total time in bed")
+
+
+#ggplot(sleep_Day, aes(TotalMinutesAsleep, TotalTimeInBed))+geom_point()+geom_smooth()+labs(title="Visualization 5 - Total minutes asleep vs total time in bed")
+```
+ * A pearson correlation coefficient of 0.93 represent an almost linear correlation as expected , the p-value returned a value much lower than the alpha value of 0.05 which would indicate a significant correlation.
+
+* This leads to the inference that very little to no sedentary minutes are spent in bed. 
+
+This leads to a final correlation plot determining the effect of "Sedentary minutes" on total time spent asleep.
+
+                                                                                                                                                                                                                                                                                                                                                                                                                
+```{r}
+ggscatter(activity_merged,x = "TotalMinutesAsleep", y="SedentaryMinutes", add ="reg.line", conf.int= TRUE, cor.coef = TRUE, cor.method = "pearson", add.params = list(color = "black", fill ="red"), title = "Visualization 6 - Minutes Asleep vs Sedentary minutes")
+
+```
+
+ * A pearson correlation coefficient of -0.56 represents a negative correlation as expected , the p-value returned a value much lower than the alpha value of 0.05 which would indicate a significant correlation.
+
+* This leads to the inference that individuals wanting better quality sleep out to spent more time active. 
+
+
+
+
+## V.Reccomendation (Act)
+
+After analyzing the various physical outputs for sleep, weight, intensity and calories of the 33 FitBit users, there were some trends observed that could be applied to the Bellabeat Leaf smart tracking device. 
+
+#### Target Audience
+
+Women who are busy and would like a service that would enable them to track several of their metabolic processes such as: hydration, sleep, stress, activity and their menstrual cycle. 
+
+Key data was missing about the participants such as age, sex and daily calories consumed. Logging weight were also only collected for 8 months.
+
+#### Key Conclusions 
+
+* There is a clear connection between the intensity of the activity and the amount of calories burnt. The leaf or the smart tracking device would need to monitor and push customers to increase their intensity based on their weight-related goals. 
+
+* Analysis of data showed a clear negative correlation between Sedentary minutes and sleep quality. The average amount of sedentary minutes is 991 minutes - this is far too high of a reading. Enabling notifications to customers to go for some sort of activity in order to break-up long periods of monotonous sedentary activity. 
+
+* The addition of calories intake tracking to the Bellabeat app would also do wonders for customers to reach their goals. The average BMI is 25.19 which is in the overweight range according to the CDC this is another observation about the average participant in the study to increase their activity range and monitor their nutritional habits. This would be a great addition to the application.
+
+*The average number of steps is 7638 which is much below the 8,000 daily steps recommended by the CDC - who has identified that taking 8,000 steps per day is associated with a 51% lower risk for all-cause mortality rate. 
+
+* A majority of the participants were Sedentary , the Bellabeat app would need to ensure to get each participants to the needed daily 30 mins of activity. This is another reccomendation for the app. 
+
+
+## Thank you for your interest in my very first data analytics project. 
+
